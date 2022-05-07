@@ -220,6 +220,22 @@ canvas.addEventListener('mouseup', e =>{
 });
 function solveCircle(){
 	circleOrbit = false;
+	objects.push(new Planet(circleX,circleY));
+	let dx = circleX - (canvas.width/2);
+	let dy = circleY - ((canvas.height - 100)/2) ;
+	let r = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+	if(r<1){
+		r=1;
+	}
+	let v = Math.sqrt((GRAVITY*32*objects[objects.length-1].mass)/r);
+	
+	let phi = Math.atan2(dy,dx);
+	
+	let vx = -v * Math.sin(phi);
+	let vy = v * Math.cos(phi);
+	
+	objects[objects.length-1].xVel = vx;
+	objects[objects.length-1].yVel = vy;
 	console.log('not implemented yet ;)');
 }
 canvas.addEventListener('mousemove', e =>{
@@ -229,7 +245,7 @@ canvas.addEventListener('mousemove', e =>{
 	tempMouseY = (e.offsetY - yStartPos) * DAMP;
 });
 function init(){
-	objects.push(new Sun(canvas.width/2,(canvas.height/2) - 50));
+	objects.push(new Sun(canvas.width/2,((canvas.height-100)/2)));
 	frame();
 }
 function resetAll(){
@@ -241,14 +257,14 @@ function resetAll(){
 	spawnStyle = 0;
 	planetSize = 1;
 	TIME = 0.05;
-	objects.push(new Sun(canvas.width/2,(canvas.height/2) - 50));
+	objects.push(new Sun(canvas.width/2,((canvas.height - 100)/2)));
 }
 function frame(){
 	//calculate circular orbit
-	moveObjects();
 	if(circleOrbit){
 		solveCircle();
 	}
+	moveObjects();
 	for(let i=0;i<objects.length;i++){
 		for(let j=0;j<objects.length;j++){
 			if(i<j){
