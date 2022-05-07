@@ -6,6 +6,12 @@ let TIME = 0.05;
 let GRAVITY = 1000;
 let DAMP = 0.25;
 let MAXACCEL = 999999;
+//planet options
+let PLANETMASS = [2,4,8];
+let PLANETRADIUS = [1,2,4];
+
+let SUNRADIUS = 8;
+let SUNMASS = 32;
 //color
 let currentColor = 0;
 let colors = [{r:255,g:0,b:0},{r:255,g:255,b:0},{r:0,g:0,b:255},{r:255,g:0,b:255},{r:255,g:0,b:127},{r:0,g:255,b:0}];
@@ -15,7 +21,8 @@ let currentObject = 0;
 
 //track style
 let TRAIL = 20; // 10, 20, 40
-
+let TRAILMIN = 10;
+let TRAILMAX = 40;
 //planet spawn style
 let spawnStyle = 0; //0 for target, 1 for random, 2 for circle
 
@@ -70,16 +77,16 @@ class Planet{
 		this.xPos = xPos;
 		this.yPos = yPos;
 		if(planetSize == 0){
-			this.radius = 1;
-			this.mass = 2;
+			this.radius = PLANETRADIUS[0];
+			this.mass = PLANETMASS[0];
 		}
 		else if(planetSize == 1){
-			this.radius = 2;
-			this.mass = 4;
+			this.radius = PLANETRADIUS[1];
+			this.mass = PLANETMASS[1];
 		}
 		else{
-			this.radius = 4;
-			this.mass = 8;
+			this.radius = PLANETRADIUS[2];
+			this.mass = PLANETMASS[2];
 		}
 	}
 }
@@ -87,8 +94,8 @@ class Sun{
 	xPos = 0;
 	yPos = 0;
 	
-	radius = 8;
-	mass = 32;
+	radius = SUNRADIUS;
+	mass = SUNMASS;
 	color = colors[1];
 	constructor(xPos, yPos){
 		this.xPos = xPos;
@@ -130,8 +137,8 @@ canvas.addEventListener('mousedown', e =>{
 		switch(menuItem){
 			case 0:
 				TRAIL *= 2;
-				if(TRAIL > 40){
-					TRAIL = 10;
+				if(TRAIL > TRAILMAX){
+					TRAIL = TRAILMIN;
 				}
 				break;
 			case 1:
@@ -221,21 +228,23 @@ canvas.addEventListener('mouseup', e =>{
 function solveCircle(){
 	circleOrbit = false;
 	objects.push(new Planet(circleX,circleY));
+	
 	let dx = circleX - (canvas.width/2);
 	let dy = circleY - ((canvas.height - 100)/2) ;
 	let r = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
 	if(r<1){
 		r=1;
 	}
-	let v = Math.sqrt((GRAVITY*32*objects[objects.length-1].mass)/r);
+	let v = Math.sqrt((GRAVITY*SUNMASS*objects[objects.length-1].mass)/r)*2;
 	
 	let phi = Math.atan2(dy,dx);
 	
 	let vx = -v * Math.sin(phi);
 	let vy = v * Math.cos(phi);
 	
-	objects[objects.length-1].xVel = vx;
-	objects[objects.length-1].yVel = vy;
+	objects[objects.length-1].xVel = vx/objects[objects.length-1].mass;
+	objects[objects.length-1].yVel = vy/objects[objects.length-1].mass;
+
 	console.log('not implemented yet ;)');
 }
 canvas.addEventListener('mousemove', e =>{
@@ -439,11 +448,12 @@ function moveObjects(){
 					let fx = f * dx / r;
 					let fy = f * dy / r;
 					
-					if(objects[i] instanceof Planet){
+					//check that the object being forced upon is smaller than the target
+					if(objects[i] instanceof Planet && objects[i].mass <= objects[j].mass){
 						objects[i].xForce += fx;
 						objects[i].yForce += fy;
 					}
-					if(objects[j] instanceof Planet){
+					if(objects[j] instanceof Planet && objects[j].mass <= objects[i].mass){
 						objects[j].xForce -= fx;
 						objects[j].yForce -= fy;
 					}
