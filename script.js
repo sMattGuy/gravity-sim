@@ -2,13 +2,14 @@
 let canvas = document.getElementById("myCanvas");
 let ctx = canvas.getContext("2d");
 
-let TIME = 0.1;
+let TIME = 0.05;
 let GRAVITY = 1000;
-
+let DAMP = 0.25;
+let MAXACCEL = 999999;
 //color
 let currentColor = 0;
-let colors = ['rgb(255,0,0)','rgb(255,255,0)','rgb(0,0,255)','rgb(255,0,255)','rgb(255,127,0)','rgb(0,255,0)'];
-
+let colors = [{r:255,g:0,b:0},{r:255,g:255,b:0},{r:0,g:0,b:255},{r:255,g:0,b:255},{r:255,g:0,b:127},{r:0,g:255,b:0}];
+let sizes = [1,2,4];
 //0 for planet, 1 for sun;
 let currentObject = 0;
 
@@ -23,14 +24,6 @@ let planetSize = 1; //0 for small, 1 for med, 2 for large
 //object pool
 let objects = [];
 
-/*
-colors: red, yellow, blue, purple, orange, green
-
-color and tracking      planet opts  
-Color: color options	target     size s,m,l	 speed 0 1/4 1/2 1 2 4 8
-Track: s, m, l			random	   star			 restart
-						circle
-*/
 class Rect{
 	constructor(xPos, yPos, l, w, item, desc){
 		this.xPos = xPos;
@@ -44,18 +37,6 @@ class Rect{
 let menuItem = -1;
 class Menu{
 	constructor(){
-		/*
-		0: track
-		1: color
-		2: target
-		3: random
-		4: circle
-		5: size
-		6: star
-		7: speed
-		8: restart
-		*/
-		//x pos, y pos, l, w
 		this.options = [
 			new Rect(10, canvas.height - 90,20,60,0,'Track'),
 			new Rect(10, canvas.height - 60,20,60,1,'Color'),
@@ -70,17 +51,6 @@ class Menu{
 	}
 }
 let menu = new Menu();
-/*
-small:
-	radius 2
-	mass 5
-med:
-	radius 5
-	mass 10
-large:
-	radius 8
-	mass 15
-*/
 class Planet{
 	xPos = 0;
 	yPos = 0;
@@ -100,16 +70,16 @@ class Planet{
 		this.xPos = xPos;
 		this.yPos = yPos;
 		if(planetSize == 0){
-			this.radius = 2;
-			this.mass = 5;
+			this.radius = 1;
+			this.mass = 2;
 		}
 		else if(planetSize == 1){
-			this.radius = 5;
-			this.mass = 10;
+			this.radius = 2;
+			this.mass = 4;
 		}
 		else{
-			this.radius = 8;
-			this.mass = 15;
+			this.radius = 4;
+			this.mass = 8;
 		}
 	}
 }
@@ -117,8 +87,8 @@ class Sun{
 	xPos = 0;
 	yPos = 0;
 	
-	radius = 10;
-	mass = 100;
+	radius = 8;
+	mass = 32;
 	color = colors[1];
 	constructor(xPos, yPos){
 		this.xPos = xPos;
@@ -149,6 +119,9 @@ let tempMouseY = 0;
 
 let mousedown = false;
 let menuing = false;
+let circleOrbit = false;
+let circleX = 0;
+let circleY = 0;
 canvas.addEventListener('mousedown', e =>{
 	mousedown = true;
 	if(menuItem >= 0){
@@ -185,20 +158,12 @@ canvas.addEventListener('mousedown', e =>{
 				currentObject = 1;
 				break;
 			case 7:
-				//0.1 is normal
-				//0 stop time
-				// 1/4	0.025
-				// 1/2	0.05
-				// 1	0.1
-				// 2	0.2
-				// 4	0.4
-				// 8	0.8
 				if(TIME == 0){
-					TIME = 0.025;
+					TIME = 0.0125;
 				}
 				else{
 					TIME *= 2;
-					if(TIME > 0.8){
+					if(TIME > 0.4){
 						TIME = 0;
 					}
 				}
@@ -229,19 +194,9 @@ canvas.addEventListener('mousedown', e =>{
 		}
 		else{
 			//circle
-			let dx = e.offsetX - canvas.width/2;
-			let dy = e.offsetY - (canvas.height/2) - 50;
-			let r = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
-			if(r<1){
-				r=1;
-			}
-			let v = Math.sqrt((GRAVITY * 100) / r);
-			
-			let acc = Math.pow(v,2)/r
-			
-			objects.push(new Planet(e.offsetX,e.offsetY));
-			objects[objects.length-1].xVel += acc;
-			objects[objects.length-1].yVel += acc;
+			circleOrbit = true;
+			circleX = e.offsetX;
+			circleY = e.offsetY;
 		}
 	}
 });
@@ -258,16 +213,20 @@ canvas.addEventListener('mouseup', e =>{
 		//planet release
 		if(spawnStyle == 0){
 			objects.push(new Planet(xStartPos,yStartPos));
-			objects[objects.length-1].xVel = xStartPos - e.offsetX;
-			objects[objects.length-1].yVel = yStartPos - e.offsetY;
+			objects[objects.length-1].xVel = (xStartPos - e.offsetX) * DAMP;
+			objects[objects.length-1].yVel = (yStartPos - e.offsetY) * DAMP;
 		}
 	}
 });
+function solveCircle(){
+	circleOrbit = false;
+	console.log('not implemented yet ;)');
+}
 canvas.addEventListener('mousemove', e =>{
 	cursor.xPos = e.offsetX;
 	cursor.yPos = e.offsetY;
-	tempMouseX = e.offsetX - xStartPos;
-	tempMouseY = e.offsetY - yStartPos;
+	tempMouseX = (e.offsetX - xStartPos) * DAMP;
+	tempMouseY = (e.offsetY - yStartPos) * DAMP;
 });
 function init(){
 	objects.push(new Sun(canvas.width/2,(canvas.height/2) - 50));
@@ -281,11 +240,15 @@ function resetAll(){
 	currentColor = 0;
 	spawnStyle = 0;
 	planetSize = 1;
-	TIME = 0.1;
+	TIME = 0.05;
 	objects.push(new Sun(canvas.width/2,(canvas.height/2) - 50));
 }
 function frame(){
+	//calculate circular orbit
 	moveObjects();
+	if(circleOrbit){
+		solveCircle();
+	}
 	for(let i=0;i<objects.length;i++){
 		for(let j=0;j<objects.length;j++){
 			if(i<j){
@@ -305,7 +268,66 @@ function resolveCollision(coll){
 	if(coll.coll){
 		//both are planets
 		if(coll.collInfo.obj1 instanceof Planet && coll.collInfo.obj2 instanceof Planet){
-			
+			if(coll.collInfo.obj1.mass > coll.collInfo.obj2.mass){
+				//obj2 explodes
+				for(let i=0;i<objects.length;i++){
+					if(objects[i] == coll.collInfo.obj2){
+						objects.splice(i,1);
+						breakPlanet(coll.collInfo.obj2);
+						break;
+					}
+				}
+			}
+			else if(coll.collInfo.obj1.mass < coll.collInfo.obj2.mass){
+				//obj1
+				for(let i=0;i<objects.length;i++){
+					if(objects[i] == coll.collInfo.obj1){
+						objects.splice(i,1);
+						breakPlanet(coll.collInfo.obj1);
+						break;
+					}
+				}
+			}
+			else{
+				//both explode
+				if(coll.collInfo.obj2.radius == 1 && coll.collInfo.obj1.radius == 1){
+					//smallest size doesnt destroy
+					let nx = coll.collInfo.dx / coll.collInfo.dist;
+					let ny = coll.collInfo.dy / coll.collInfo.dist;
+					let s = coll.collInfo.obj2.radius + coll.collInfo.obj1.radius - coll.collInfo.dist;
+					
+					let k = -2 * ((coll.collInfo.obj2.xVel - coll.collInfo.obj1.xVel) * nx + (coll.collInfo.obj2.yVel - coll.collInfo.obj1.yVel) * ny) / (1/coll.collInfo.obj1.mass + 1/coll.collInfo.obj2.mass);
+					
+					for(let i=0;i<objects.length;i++){
+						if(objects[i] == coll.collInfo.obj2){
+							objects[i].xPos += nx * s/2;
+							objects[i].yPos += ny * s/2;
+							objects[i].xVel += ((k * nx) / objects[i].mass)*TIME*0.25;
+							objects[i].yVel += ((k * ny) / objects[i].mass)*TIME*0.25;
+						}
+						else if(objects[i] == coll.collInfo.obj1){
+							objects[i].xPos -= nx * s/2;
+							objects[i].yPos -= ny * s/2;
+							objects[i].xVel -= ((k * nx) / objects[i].mass)*TIME*0.25;
+							objects[i].yVel -= ((k * ny) / objects[i].mass)*TIME*0.25;
+						}
+					}
+				}
+				else{
+					for(let i=0;i<objects.length;i++){
+						if(objects[i] == coll.collInfo.obj2){
+							objects.splice(i,1);
+							breakPlanet(coll.collInfo.obj2);
+							i--;
+						}
+						if(objects[i] == coll.collInfo.obj1){
+							objects.splice(i,1);
+							breakPlanet(coll.collInfo.obj1);
+							i--;
+						}
+					}
+				}
+			}
 		}
 		//planet and sun
 		if(coll.collInfo.obj1 instanceof Planet && coll.collInfo.obj2 instanceof Sun){
@@ -338,6 +360,18 @@ function resolveCollision(coll){
 		}
 	}
 }
+function breakPlanet(obj){
+	let randomRocks = obj.radius - 1;
+	for(let j=0;j<randomRocks;j++){
+		let planetFrag = new Planet(obj.xPos + Math.floor(Math.random()*5),obj.yPos + Math.floor(Math.random()*5));
+		planetFrag.xVel = (Math.random()*obj.xVel);
+		planetFrag.yVel = (Math.random()*obj.yVel);
+		planetFrag.radius = 1;
+		planetFrag.mass = 2;
+		planetFrag.color = obj.color;
+		objects.push(planetFrag);
+	}
+}
 function checkCollision(obj1, obj2){
 	if(obj1 instanceof Cursor){
 		if( obj1.xPos < obj2.xPos + obj2.w &&
@@ -351,6 +385,9 @@ function checkCollision(obj1, obj2){
 	let dx = obj2.xPos - obj1.xPos;
 	let dy = obj2.yPos - obj1.yPos;
 	let d = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+	if(d < 1){
+		d = 1;
+	}
 	if(d < obj1.radius + obj2.radius){
 		return {
 			collInfo: new Collision(obj1, obj2, dx, dy, d),
@@ -372,23 +409,28 @@ function moveObjects(){
 	for(let i=0;i<objects.length;i++){
 		for(let j=0;j<objects.length;j++){
 			if(i < j){
-				let dx = objects[j].xPos - objects[i].xPos;
-				let dy = objects[j].yPos - objects[i].yPos;
-				let r = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
-				if(r<1){
-					r=1;
+				if(objects[i].radius == 1 && objects[j].radius == 1){
+					//smallest size doesnt interact with eachother to avoid craziness 
 				}
-				let f = (GRAVITY * objects[i].mass * objects[j].mass) / Math.pow(r,2);
-				let fx = f * dx / r;
-				let fy = f * dy / r;
-				
-				if(objects[i] instanceof Planet){
-					objects[i].xForce += fx;
-					objects[i].yForce += fy;
-				}
-				if(objects[j] instanceof Planet){
-					objects[j].xForce -= fx;
-					objects[j].yForce -= fy;
+				else{
+					let dx = objects[j].xPos - objects[i].xPos;
+					let dy = objects[j].yPos - objects[i].yPos;
+					let r = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+					if(r<1){
+						r=1;
+					}
+					let f = (GRAVITY * objects[i].mass * objects[j].mass) / Math.pow(r,2);
+					let fx = f * dx / r;
+					let fy = f * dy / r;
+					
+					if(objects[i] instanceof Planet){
+						objects[i].xForce += fx;
+						objects[i].yForce += fy;
+					}
+					if(objects[j] instanceof Planet){
+						objects[j].xForce -= fx;
+						objects[j].yForce -= fy;
+					}
 				}
 			}
 		}
@@ -401,15 +443,21 @@ function moveObjects(){
 			}
 			objects[i].xAcc = objects[i].xForce / objects[i].mass;
 			objects[i].yAcc = objects[i].yForce / objects[i].mass;
+			if(Math.abs(objects[i].xAcc) > MAXACCEL){
+				objects[i].xAcc = MAXACCEL * (objects[i].xAcc / Math.abs(objects[i].xAcc));
+			}
+			if(Math.abs(objects[i].yAcc) > MAXACCEL){
+				objects[i].yAcc = MAXACCEL * (objects[i].yAcc / Math.abs(objects[i].yAcc));
+			}
 			objects[i].xVel += objects[i].xAcc * TIME;
 			objects[i].yVel += objects[i].yAcc * TIME;
 			objects[i].xPos += objects[i].xVel * TIME;
 			objects[i].yPos += objects[i].yVel * TIME;
 			
-			if(Math.abs(objects[i].xPos) > Math.abs(canvas.width + 100)){
+			if(Math.abs(objects[i].xPos) > Math.abs(canvas.width + 100) || isNaN(objects[i].xPos)){
 				objects.splice(i,1);
 			}
-			else if(Math.abs(objects[i].yPos) > Math.abs(canvas.width + 100)){
+			else if(Math.abs(objects[i].yPos) > Math.abs(canvas.width + 100) || isNaN(objects[i].xPos)){
 				objects.splice(i,1);
 			}
 		}
@@ -420,23 +468,24 @@ function draw(){
 	ctx.fillRect(0,0,canvas.width,canvas.height);
 	for(let i=0;i<objects.length;i++){
 		//draw objects
-		ctx.fillStyle = objects[i].color;
 		if(objects[i] instanceof Planet){
 			for(let j=0;j<objects[i].prevPosition.length;j++){
 				ctx.beginPath();
+				ctx.fillStyle = `rgba(${objects[i].color.r},${objects[i].color.g},${objects[i].color.b},0.25)`;
 				ctx.arc(objects[i].prevPosition[j].xPos, objects[i].prevPosition[j].yPos, 1, 0, 2*Math.PI, false);
 				ctx.fill();
 			}
 		}
+		ctx.fillStyle = `rgba(${objects[i].color.r},${objects[i].color.g},${objects[i].color.b},1)`;
 		ctx.beginPath();
 		ctx.arc(objects[i].xPos, objects[i].yPos, objects[i].radius, 0, 2*Math.PI, false);
 		ctx.fill();
 	}
 	if(mousedown && !menuing && currentObject == 0 && spawnStyle == 0){
 		//draw to be planet
-		ctx.fillStyle = colors[currentColor];
+		ctx.fillStyle = `rgba(${colors[currentColor].r},${colors[currentColor].g},${colors[currentColor].b},1)`;
 		ctx.beginPath();
-		ctx.arc(xStartPos, yStartPos, 5, 0, 2*Math.PI, false);
+		ctx.arc(xStartPos, yStartPos, sizes[planetSize], 0, 2*Math.PI, false);
 		ctx.fill();
 		//draw velocity line
 		ctx.strokeStyle = 'red';
@@ -469,7 +518,7 @@ function draw(){
 	ctx.fillStyle = 'rgb(10,10,10)';
 	ctx.font = "12px Arial";
 	ctx.fillText(`Track = ${TRAIL}`,290+3,canvas.height-75);
-	ctx.fillText(`Color = ${colors[currentColor]}`,290+3,canvas.height-60);
+	ctx.fillText(`Color = rgb(${colors[currentColor].r},${colors[currentColor].g},${colors[currentColor].b})`,290+3,canvas.height-60);
 	ctx.fillText(`Spawn Style = ${spawnStyle}`,290+3,canvas.height-45);
 	ctx.fillText(`Size = ${planetSize}`,290+3,canvas.height-30);
 	ctx.fillText(`Speed = ${TIME}`,290+50,canvas.height-30);
