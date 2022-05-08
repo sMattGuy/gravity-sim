@@ -5,7 +5,6 @@ let ctx = canvas.getContext("2d");
 let TIME = 0.05;
 let GRAVITY = 1000;
 let DAMP = 0.25;
-let MAXACCEL = 999999;
 //planet options
 let PLANETMASS = [2,4,8];
 let PLANETRADIUS = [1,2,4];
@@ -227,24 +226,36 @@ canvas.addEventListener('mouseup', e =>{
 });
 function solveCircle(){
 	circleOrbit = false;
-	objects.push(new Planet(circleX,circleY));
+	let newPlanet = new Planet(circleX,circleY);
+	let planetMass = newPlanet.mass;
 	
 	let dx = circleX - (canvas.width/2);
-	let dy = circleY - ((canvas.height - 100)/2) ;
+	let dy = circleY - ((canvas.height - 100)/2);
 	let r = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
 	if(r<1){
 		r=1;
 	}
-	let v = Math.sqrt((GRAVITY*SUNMASS*objects[objects.length-1].mass)/r)*2;
+
+	let v = 1;
+	if(planetSize == 0){
+		v = Math.sqrt((GRAVITY*SUNMASS*planetMass)/r)*1.39;
+	}
+	else if(planetSize == 1){
+		v = Math.sqrt((GRAVITY*SUNMASS*planetMass)/r)*2;
+	}
+	else{
+		v = v = Math.sqrt((GRAVITY*SUNMASS*planetMass)/r)*2.8;
+	}
 	
 	let phi = Math.atan2(dy,dx);
 	
-	let vx = -v * Math.sin(phi);
-	let vy = v * Math.cos(phi);
+	let vx = v * Math.cos(phi + (Math.PI/2));
+	let vy = v * Math.sin(phi + (Math.PI/2));
 	
-	objects[objects.length-1].xVel = vx/objects[objects.length-1].mass;
-	objects[objects.length-1].yVel = vy/objects[objects.length-1].mass;
-
+	newPlanet.xVel += vx/planetMass;
+	newPlanet.yVel += vy/planetMass;
+	
+	objects.push(newPlanet);
 	console.log('not implemented yet ;)');
 }
 canvas.addEventListener('mousemove', e =>{
@@ -444,6 +455,7 @@ function moveObjects(){
 					if(r<1){
 						r=1;
 					}
+
 					let f = (GRAVITY * objects[i].mass * objects[j].mass) / Math.pow(r,2);
 					let fx = f * dx / r;
 					let fy = f * dy / r;
@@ -469,12 +481,6 @@ function moveObjects(){
 			}
 			objects[i].xAcc = objects[i].xForce / objects[i].mass;
 			objects[i].yAcc = objects[i].yForce / objects[i].mass;
-			if(Math.abs(objects[i].xAcc) > MAXACCEL){
-				objects[i].xAcc = MAXACCEL * (objects[i].xAcc / Math.abs(objects[i].xAcc));
-			}
-			if(Math.abs(objects[i].yAcc) > MAXACCEL){
-				objects[i].yAcc = MAXACCEL * (objects[i].yAcc / Math.abs(objects[i].yAcc));
-			}
 			objects[i].xVel += objects[i].xAcc * TIME;
 			objects[i].yVel += objects[i].yAcc * TIME;
 			objects[i].xPos += objects[i].xVel * TIME;
